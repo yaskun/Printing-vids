@@ -1,0 +1,12 @@
+streamlit
+moviepy
+google-generativeai
+elevenlabs
+google-api-python-client
+google-auth-oauthlib
+google-auth-httplib2
+beautifulsoup4
+requests
+python-dotenv
+imageio-ffmpeg
+Pillow
