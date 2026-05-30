@@ -80,6 +80,8 @@ if selected_channel != "+ Nuevo Canal":
         st.error("⚠️ Faltan llaves de API (Gemini o ElevenLabs) en el archivo .env")
         st.info("Asegúrate de configurar GEMINI_API_KEY y ELEVENLABS_API_KEY para habilitar la generación.")
 
+    st.info("🐢 **Modo de Alta Compatibilidad Activado**: La generación será pausada para evitar bloqueos de Google.")
+
     tab1, tab2, tab3 = st.tabs(["🚀 Generar Video", "📰 Fuentes de Noticias", "📁 Librería de Clips"])
 
     with tab1:

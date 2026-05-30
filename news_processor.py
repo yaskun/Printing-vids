@@ -8,10 +8,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-def retry_with_backoff(func, max_retries=10, initial_sleep=10):
+def retry_with_backoff(func, max_retries=15, initial_sleep=30):
     """
-    Decorador o utilidad para reintentar llamadas a la API con retroceso exponencial agresivo.
-    Diseñado para el Free Tier de Gemini que tiene límites estrictos.
+    Decorador de ULTRA REINTENTO para el Free Tier.
+    Diseñado para esperar lo que sea necesario para evitar el error 429 persistente.
     """
     def wrapper(*args, **kwargs):
         retries = 0
@@ -27,20 +27,20 @@ def retry_with_backoff(func, max_retries=10, initial_sleep=10):
                         print(f"Máximo de reintentos alcanzado para la API de Gemini.")
                         raise e
 
-                    # Intentar extraer el tiempo de espera sugerido por Google si existe
-                    # A veces viene como "Please retry in 46.538s"
+                    # Extraer el tiempo sugerido por Google con prioridad absoluta
                     import re
                     match = re.search(r"retry in ([\d\.]+)s", error_msg)
                     if match:
-                        wait_seconds = float(match.group(1)) + 2 # Margen de seguridad
-                        print(f"Límite de cuota excedido. Google sugiere esperar {wait_seconds}s.")
+                        wait_seconds = float(match.group(1)) + 5 # Margen generoso
+                        print(f"⚠️ CUOTA EXCEDIDA. Google bloqueó la petición. Esperando sugerencia de Google: {wait_seconds}s...")
                         actual_sleep = wait_seconds
                     else:
-                        actual_sleep = sleep_time + random.uniform(0, 5)
+                        # Si no hay sugerencia, usamos un backoff muy agresivo
+                        actual_sleep = sleep_time + random.uniform(5, 15)
+                        print(f"⚠️ CUOTA EXCEDIDA. Sin sugerencia de tiempo. Esperando {actual_sleep:.2f}s por seguridad...")
 
-                    print(f"Reintentando en {actual_sleep:.2f}s... (Intento {retries}/{max_retries})")
                     time.sleep(actual_sleep)
-                    sleep_time *= 1.5 # Retroceso progresivo
+                    sleep_time *= 2 # Retroceso exponencial agresivo
                 else:
                     raise e
     return wrapper
@@ -80,6 +80,10 @@ class NewsProcessor:
         )
 
     def generate_script(self, news_text, channel_niche, custom_prompt):
+        # Pausa inicial preventiva
+        print("Modo Ultra Lento: Pausa preventiva de 20s antes de empezar...")
+        time.sleep(20)
+
         prompt = f"""
         Actúa como un experto creador de contenido para YouTube Shorts.
         Nicho del canal: {channel_niche}
@@ -100,9 +104,9 @@ class NewsProcessor:
         safe_call = retry_with_backoff(self._call_gemini_generate)
         response = safe_call(prompt)
 
-        # Pausa de cortesía obligatoria (Slow Mode)
-        print("Pausa de seguridad de 10 segundos tras generación de guion...")
-        time.sleep(10)
+        # Pausa de cortesía masiva (Ultra Slow Mode)
+        print("✅ Guion generado. Pausa de seguridad de 60 segundos antes del siguiente paso...")
+        time.sleep(60)
         return response.text.strip()
 
     def generate_marketing_assets(self, script, channel_context):
@@ -126,8 +130,8 @@ class NewsProcessor:
         safe_call = retry_with_backoff(self._call_gemini_generate)
         response = safe_call(prompt)
 
-        print("Pausa de seguridad de 10 segundos tras generación de marketing...")
-        time.sleep(10)
+        print("✅ Marketing generado. Pausa de seguridad de 60 segundos antes de la miniatura...")
+        time.sleep(60)
         return response.text.strip()
 
     def _call_gemini_image(self, prompt):
