@@ -12,8 +12,14 @@ load_dotenv()
 
 class AutomationEngine:
     def __init__(self):
-        self.news_processor = NewsProcessor(os.getenv("GEMINI_API_KEY"))
-        self.audio_generator = AudioGenerator(os.getenv("ELEVENLABS_API_KEY"))
+        gemini_key = os.getenv("GEMINI_API_KEY")
+        eleven_key = os.getenv("ELEVENLABS_API_KEY")
+
+        if not gemini_key or not eleven_key:
+            raise ValueError("Faltan GEMINI_API_KEY o ELEVENLABS_API_KEY en el entorno.")
+
+        self.news_processor = NewsProcessor(gemini_key)
+        self.audio_generator = AudioGenerator(eleven_key)
         self.video_editor = VideoEditor()
         self.uploader = YouTubeUploader()
 

@@ -13,11 +13,14 @@ load_dotenv()
 # Configuración de página
 st.set_page_config(page_title="AutoVideo Studio", layout="wide", page_icon="🎬")
 
-# Inicializar componentes
+# Inicializar componentes de forma segura
+gemini_key = os.getenv("GEMINI_API_KEY")
+eleven_key = os.getenv("ELEVENLABS_API_KEY")
+
 if 'news_processor' not in st.session_state:
-    st.session_state.news_processor = NewsProcessor(os.getenv("GEMINI_API_KEY"))
+    st.session_state.news_processor = NewsProcessor(gemini_key) if gemini_key else None
 if 'audio_generator' not in st.session_state:
-    st.session_state.audio_generator = AudioGenerator(os.getenv("ELEVENLABS_API_KEY"))
+    st.session_state.audio_generator = AudioGenerator(eleven_key) if eleven_key else None
 if 'video_editor' not in st.session_state:
     st.session_state.video_editor = VideoEditor()
 if 'uploader' not in st.session_state:
@@ -73,6 +76,10 @@ else:
 st.title("🎬 AutoVideo Studio")
 
 if selected_channel != "+ Nuevo Canal":
+    if not gemini_key or not eleven_key:
+        st.error("⚠️ Faltan llaves de API (Gemini o ElevenLabs) en el archivo .env")
+        st.info("Asegúrate de configurar GEMINI_API_KEY y ELEVENLABS_API_KEY para habilitar la generación.")
+
     tab1, tab2, tab3 = st.tabs(["🚀 Generar Video", "📰 Fuentes de Noticias", "📁 Librería de Clips"])
 
     with tab1:
@@ -80,6 +87,8 @@ if selected_channel != "+ Nuevo Canal":
 
         if not channels[selected_channel]["urls"]:
             st.warning("Añade algunas URLs de noticias en la pestaña 'Fuentes de Noticias' primero.")
+        elif not st.session_state.news_processor:
+            st.error("NewsProcessor no inicializado (revisa tu GEMINI_API_KEY)")
         else:
             url_to_process = st.selectbox("Seleccionar noticia para procesar", channels[selected_channel]["urls"])
 

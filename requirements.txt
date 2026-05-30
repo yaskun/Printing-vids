@@ -1,6 +1,6 @@
 streamlit
 moviepy
-google-generativeai
+google-genai
 elevenlabs
 google-api-python-client
 google-auth-oauthlib
@@ -10,3 +10,4 @@ requests
 python-dotenv
 imageio-ffmpeg
 Pillow
+schedule
