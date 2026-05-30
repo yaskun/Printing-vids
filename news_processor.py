@@ -8,10 +8,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-def retry_with_backoff(func, max_retries=5, initial_sleep=2):
+def retry_with_backoff(func, max_retries=10, initial_sleep=10):
     """
-    Decorador o utilidad para reintentar llamadas a la API con retroceso exponencial.
-    Ideal para manejar errores 429 (Too Many Requests).
+    Decorador o utilidad para reintentar llamadas a la API con retroceso exponencial agresivo.
+    Diseñado para el Free Tier de Gemini que tiene límites estrictos.
     """
     def wrapper(*args, **kwargs):
         retries = 0
@@ -20,17 +20,27 @@ def retry_with_backoff(func, max_retries=5, initial_sleep=2):
             try:
                 return func(*args, **kwargs)
             except Exception as e:
-                if "429" in str(e) or "quota" in str(e).lower():
+                error_msg = str(e).lower()
+                if "429" in error_msg or "quota" in error_msg or "resource_exhausted" in error_msg:
                     retries += 1
                     if retries == max_retries:
                         print(f"Máximo de reintentos alcanzado para la API de Gemini.")
                         raise e
 
-                    # Añadir un pequeño factor aleatorio (jitter) para evitar colisiones
-                    actual_sleep = sleep_time + random.uniform(0, 1)
-                    print(f"Error 429 detectado. Reintentando en {actual_sleep:.2f}s... (Intento {retries}/{max_retries})")
+                    # Intentar extraer el tiempo de espera sugerido por Google si existe
+                    # A veces viene como "Please retry in 46.538s"
+                    import re
+                    match = re.search(r"retry in ([\d\.]+)s", error_msg)
+                    if match:
+                        wait_seconds = float(match.group(1)) + 2 # Margen de seguridad
+                        print(f"Límite de cuota excedido. Google sugiere esperar {wait_seconds}s.")
+                        actual_sleep = wait_seconds
+                    else:
+                        actual_sleep = sleep_time + random.uniform(0, 5)
+
+                    print(f"Reintentando en {actual_sleep:.2f}s... (Intento {retries}/{max_retries})")
                     time.sleep(actual_sleep)
-                    sleep_time *= 2 # Retroceso exponencial
+                    sleep_time *= 1.5 # Retroceso progresivo
                 else:
                     raise e
     return wrapper
@@ -90,8 +100,9 @@ class NewsProcessor:
         safe_call = retry_with_backoff(self._call_gemini_generate)
         response = safe_call(prompt)
 
-        # Pausa de cortesía para evitar ráfagas
-        time.sleep(1)
+        # Pausa de cortesía obligatoria (Slow Mode)
+        print("Pausa de seguridad de 10 segundos tras generación de guion...")
+        time.sleep(10)
         return response.text.strip()
 
     def generate_marketing_assets(self, script, channel_context):
@@ -115,7 +126,8 @@ class NewsProcessor:
         safe_call = retry_with_backoff(self._call_gemini_generate)
         response = safe_call(prompt)
 
-        time.sleep(1)
+        print("Pausa de seguridad de 10 segundos tras generación de marketing...")
+        time.sleep(10)
         return response.text.strip()
 
     def _call_gemini_image(self, prompt):
