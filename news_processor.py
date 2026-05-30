@@ -2,14 +2,43 @@ import requests
 from bs4 import BeautifulSoup
 from google import genai
 import os
+import time
+import random
 from dotenv import load_dotenv
 
 load_dotenv()
 
+def retry_with_backoff(func, max_retries=5, initial_sleep=2):
+    """
+    Decorador o utilidad para reintentar llamadas a la API con retroceso exponencial.
+    Ideal para manejar errores 429 (Too Many Requests).
+    """
+    def wrapper(*args, **kwargs):
+        retries = 0
+        sleep_time = initial_sleep
+        while retries < max_retries:
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                if "429" in str(e) or "quota" in str(e).lower():
+                    retries += 1
+                    if retries == max_retries:
+                        print(f"Máximo de reintentos alcanzado para la API de Gemini.")
+                        raise e
+
+                    # Añadir un pequeño factor aleatorio (jitter) para evitar colisiones
+                    actual_sleep = sleep_time + random.uniform(0, 1)
+                    print(f"Error 429 detectado. Reintentando en {actual_sleep:.2f}s... (Intento {retries}/{max_retries})")
+                    time.sleep(actual_sleep)
+                    sleep_time *= 2 # Retroceso exponencial
+                else:
+                    raise e
+    return wrapper
+
 class NewsProcessor:
     def __init__(self, api_key):
         self.client = genai.Client(api_key=api_key)
-        self.model_id = "gemini-2.0-flash" # Actualizado a la versión más reciente y estable
+        self.model_id = "gemini-2.0-flash"
 
     def fetch_news_content(self, url):
         try:
@@ -34,6 +63,12 @@ class NewsProcessor:
         except Exception as e:
             return f"Error al extraer contenido de {url}: {str(e)}"
 
+    def _call_gemini_generate(self, prompt):
+        return self.client.models.generate_content(
+            model=self.model_id,
+            contents=prompt
+        )
+
     def generate_script(self, news_text, channel_niche, custom_prompt):
         prompt = f"""
         Actúa como un experto creador de contenido para YouTube Shorts.
@@ -51,10 +86,12 @@ class NewsProcessor:
         5. Asegúrate de que el resumen cubra los puntos clave de la noticia.
         """
 
-        response = self.client.models.generate_content(
-            model=self.model_id,
-            contents=prompt
-        )
+        # Aplicar reintento con backoff
+        safe_call = retry_with_backoff(self._call_gemini_generate)
+        response = safe_call(prompt)
+
+        # Pausa de cortesía para evitar ráfagas
+        time.sleep(1)
         return response.text.strip()
 
     def generate_marketing_assets(self, script, channel_context):
@@ -75,23 +112,22 @@ class NewsProcessor:
         PROMPT_MINIATURA: [Prompt aquí]
         """
 
-        response = self.client.models.generate_content(
-            model=self.model_id,
-            contents=prompt
-        )
+        safe_call = retry_with_backoff(self._call_gemini_generate)
+        response = safe_call(prompt)
+
+        time.sleep(1)
         return response.text.strip()
 
+    def _call_gemini_image(self, prompt):
+        return self.client.models.generate_image(
+            model="imagen-3.0-generate-001",
+            prompt=prompt
+        )
+
     def generate_thumbnail(self, prompt, output_path="temp/thumbnail.png"):
-        """
-        Genera una miniatura usando Imagen 3 vía el nuevo SDK.
-        """
         try:
-            # En el nuevo SDK, Imagen suele estar bajo models.generate_image
-            # Nota: Esto depende de la disponibilidad del modelo en la API KEY
-            response = self.client.models.generate_image(
-                model="imagen-3.0-generate-001",
-                prompt=prompt
-            )
+            safe_call = retry_with_backoff(self._call_gemini_image)
+            response = safe_call(prompt)
 
             if response.images:
                 response.images[0].save(output_path)
