@@ -59,3 +59,28 @@ class YouTubeUploader:
 
         response = insert_request.execute()
         return response.get('id')
+
+    def get_channel_stats(self, channel_id):
+        """
+        Obtiene estadísticas básicas del canal.
+        """
+        try:
+            youtube = self.get_service(channel_id)
+            request = youtube.channels().list(
+                part="statistics,snippet",
+                mine=True
+            )
+            response = request.execute()
+
+            if response['items']:
+                item = response['items'][0]
+                return {
+                    "title": item['snippet']['title'],
+                    "subscribers": item['statistics'].get('subscriberCount', '0'),
+                    "views": item['statistics'].get('viewCount', '0'),
+                    "videos": item['statistics'].get('videoCount', '0'),
+                    "thumbnail": item['snippet']['thumbnails']['default']['url']
+                }
+        except Exception as e:
+            print(f"Error obteniendo stats: {e}")
+        return None
