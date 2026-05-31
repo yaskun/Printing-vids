@@ -13,9 +13,11 @@ Esta aplicación automatiza la creación de videos para YouTube Shorts a partir 
 ## Configuración
 
 1. **Dependencias:**
+   Es crucial instalar las dependencias dentro de tu entorno virtual (venv):
    ```bash
    pip install -r requirements.txt
    ```
+   Si recibes un error tipo `ModuleNotFoundError: No module named 'openai'`, asegúrate de haber ejecutado el comando anterior y de que tu IDE/Terminal esté usando el intérprete de Python correcto.
 
 2. **Variables de Entorno:**
    Crea un archivo `.env` basado en `.env.example`:
